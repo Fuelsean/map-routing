@@ -65,7 +65,7 @@ export const AddressList = () => {
 
     const validateAddress = (location) => {
         if (location && location?.Address?.trim()?.length > 0) {
-            return fetch(`http://www.mapquestapi.com/geocoding/v1/address?key=HbeZkfxVyOubAiNNEVA2yZSb79i96XyW&location=${location.Address}&boundingBox=34.023071,-97.893677,32.238359,-95.861206`)
+            return fetch(`https://www.mapquestapi.com/geocoding/v1/address?key=HbeZkfxVyOubAiNNEVA2yZSb79i96XyW&location=${location.Address}&boundingBox=34.023071,-97.893677,32.238359,-95.861206`)
                 .then(response => {
                     console.log(response);
                     return response.json().then(body => {
