@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
+import { RoutedAddress, Location, BoundingBox } from '../classes';
+import { validateAddress, routeAddressList } from '../actions/mapActions';
+import { ErrorToast } from './toastMessage';
+import { Button, Spinner, ToastContainer } from 'react-bootstrap';
+import { CopyButton } from './copyButton';
+import { CopyContent } from '../actions/clipboardActions';
 
 export const AddressList = () => {
     const [list, setList] = useState([]);
     const [routedList, setRoutedList] = useState([]);
+    const [boundary, setBoundary] = useState({});
+    const [errorData, setErrorData] = useState([]);
+    const [routeWait, setRouteWait] = useState(false);
+    const [validateWait, setValidateWaiting] = useState(false);
+    const [showMap, setShowMap] = useState(true);
+    const [mapCenter, setMapCenter] = useState([33.1713531, -96.8214918]);
+
     const handleChange = (event) => {
         var val = event?.target?.value;
         if (val) {
@@ -19,84 +32,91 @@ export const AddressList = () => {
                 }
             });
             setList(newList);
-            console.log(list);
         }
     }
-    const validateAddressList = () => {
+
+    const validateAddressList = async () => {
+        setValidateWaiting(!validateWait);
+        setErrorData([]);
+        let errorData = [];
         var items = list.filter(a => a.Found === false);
         if (items && items.length > 0) {
-            items.forEach(async (location) => {
-                await validateAddress(location);
-            });
-        }
-    };
-    const routeAddressList = async () => {
-        var items = list.filter(a => a.Found === true);
-        if (items && items.length > 0) {
-            //https://here-b2c.aws.mapquest.com/directions/v2/optimizedroute?timeType=1
-            let request = {
-                locations: items.map(i => i.Match),
-                options: {
-                    narrativeType: "none"
+            var results = items.map(async (location) => {
+                if (location.Address) {
+                    let l = await validateAddress(location.Address);
+                    location.Match = l?.Match;
+                    location.Found = l?.Found ?? false;
+                    location.Error = l?.Error;
+                    if (location.Error) {
+                        errorData.push({ header: "Error validating", message: location.Message ?? location.Address, err: location.Error });
+                    }
+                    setErrorData(errorData.map(item => item));
+                    setList(list.map(item => item));
                 }
-            };
-            const response = await fetch("https://here-b2c.aws.mapquest.com/directions/v2/optimizedroute?timeType=1", {
-                method: "POST",
-                cache: "no-cache",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(request)
             });
-            const body = await response.json();
-            let routed = []
-            if (body?.route) {
-                body.route.locations.forEach((matched, stop) => {
-                    let leg = stop == 0 ? null : body.route.legs.find(l => l.index == stop - 1);
-                    routed.push(
-                        new RoutedAddress(
-                            `${matched.street}, ${matched.adminArea5}, ${matched.adminArea3}, ${matched.postalCode}`,
-                            stop,
-                            leg?.distance ?? 0)
-                    );
-                });
-            }
-            setRoutedList(routed);
+            await Promise.all(results);
+        }
+        setValidateWaiting(false);
+    };
+
+    const copyRouted = async () => {
+        let copyTextArray = routedList.map(i => `${i.Address}\t${i.Zip}`);
+        if (copyTextArray?.length > 0) {
+            let copyText = copyTextArray.join("\n");
+            await CopyContent(copyText);
+            alert(`${copyTextArray.length} addresses copied.`);
         }
     };
 
-    const validateAddress = (location) => {
-        if (location && location?.Address?.trim()?.length > 0) {
-            return fetch(`https://www.mapquestapi.com/geocoding/v1/address?key=HbeZkfxVyOubAiNNEVA2yZSb79i96XyW&location=${location.Address}&boundingBox=34.023071,-97.893677,32.238359,-95.861206`)
-                .then(response => {
-                    console.log(response);
-                    return response.json().then(body => {
-                        if (body && body.results && body.results.length > 0) {
-                            if (body.results[0].locations?.length > 0) {
-                                let matched = body.results[0].locations[0];
-                                if (matched.street?.length > 2) {
-                                    if (BoundingBox.ValidateCoordinates(matched.latLng?.lat, matched.latLng?.lng)) {
-                                        location.Found = true;
-                                        location.Match = `${matched.street}, ${matched.adminArea5}, ${matched.adminArea3}, ${matched.postalCode}`;
-                                    }
-                                }
-                            }
-                        }
-                        setList(list.map(i => i));
-                        return location;
-                    });
-                });
-        }
-        return Promise.resolve();
-    };
     useEffect(() => {
+        //console.log("Validating", validateWait);
+    }
+        , [validateWait])
+    useEffect(() => {
+        //console.log("Routing", routeWait);
+    }
+        , [routeWait])
 
-    },
-        [list]);
+    useEffect(() => {
+        console.log(boundary)
+        if (!boundary) {
+            setShowMap(false);
+            return;
+        }
+        let xCenter = (boundary?.ul?.lng + boundary?.lr?.lng) / 2;
+        let yCenter = (boundary?.ul?.lat + boundary?.lr?.lat) / 2;
+        if (Number.isNaN(xCenter)) {
+            setShowMap(false);
+            return;
+        }
+        console.log("Center:", `${xCenter}, ${yCenter}`);
+        setMapCenter([yCenter, xCenter]);
+        setShowMap(true);
+        let routedLocations = routedList.map(l => `${l.Address}, ${l.Zip}`);
+        let directions = L.mapquest.directions();
+        directions.route({
+            locations: routedLocations
+        });
+    }, [boundary])
+
+    const routeAddresses = async () => {
+        setRouteWait(!routeWait);
+        setRoutedList([]);
+        setErrorData([]);
+        let routed = await routeAddressList(list);
+        if (routed?.error) {
+            setErrorData([routed.error]);
+        }
+        setRoutedList(routed?.data);
+        setBoundary(routed?.boundary);
+        setRouteWait(false);
+    }
 
     const formatTable = () => {
         return list.map((item, index) => {
-            console.log(index, item);
+            //console.log(index, item);
             return (
-                <tr key={index} class={item.CssClass}>
+                <tr key={index} className={item.CssClass}>
                     <td>{item.Address}</td>
                     <td>{`${item.Match}`}</td>
                 </tr>
@@ -107,22 +127,38 @@ export const AddressList = () => {
         return routedList.map((item, index) => {
             return (
                 <tr key={index}>
-                    <td>{item.Stop}</td>
-                    <td>{`${item.Address}`}</td>
+                    <td>{item.Stop + 1}</td>
+                    <td>{item.Address}</td>
+                    <td>{item.Zip}</td>
                     <td>{`${item.Distance}`}</td>
                 </tr>
             )
         });
     };
+    const showErrors = () => {
+        return errorData.map((item, index) => {
+            return (
+                <ErrorToast key={index}
+                    header={item.header}
+                    message={item.message}
+                    err={item.err}
+                />
+            )
+        });
+    };
 
     return (
-        <div class="container">
-            <div class="row">
-                <div class="col-sm">
+        <div className="container">
+            <ToastContainer containerPosition="position-fixed" position='top-center'>
+                {errorData && showErrors()}
+            </ToastContainer>
+            <div className="row">
+                <div className="col-sm">
+                    <h2>Address input list</h2>
                     <textarea rows="20" cols="50" id="addressList" onChange={handleChange} />
                 </div>
-                <div class="col-sm">
-                    <table class="table">
+                <div className="col-sm">
+                    <table className="table">
                         <thead>
                             <tr>
                                 <th>Address</th><th>Match</th>
@@ -134,20 +170,51 @@ export const AddressList = () => {
                     </table>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-sm">
-                    <button id="validateBtn" onClick={validateAddressList}>Validate</button>
+            <div className="row">
+                <div className="col-sm">
+                    {validateWait === true &&
+                        (<Button disabled>
+                            <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true" />
+                        </Button>
+                        )}
+                    {validateWait === false && (
+                        <Button id="validateBtn" onClick={validateAddressList}>Validate
+                        </Button>
+                    )}
                 </div>
-                <div class="col-sm">
-                    <button id="routeBtn" onClick={routeAddressList}>Route</button>
+                <div className="col-sm">
+                    {routeWait === true &&
+                        (<Button disabled>
+                            <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true" />
+                        </Button>
+                        )}
+                    {routeWait === false && (
+                        <Button id="routeBtn" onClick={routeAddresses}>Route
+                        </Button>
+                    )}
                 </div>
             </div>
-            <div class="row">
-                <div class="col-sm">
-                    <table class="table">
+            <div className="row">
+                <div className="col-sm">
+                    <table className="table">
                         <thead>
                             <tr>
-                                <th>Stop</th><th>Address</th><th>Distance</th>
+                                <th>Stop</th>
+                                <th>Address
+                                    <CopyButton height="14" width="14" copyClickHandler={copyRouted} />
+                                </th>
+                                <th>Zip</th>
+                                <th>Distance</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -160,48 +227,3 @@ export const AddressList = () => {
     )
 }
 
-class Location {
-    constructor() {
-        this.address = "";
-        this.match = "";
-        this.found = false;
-    }
-    get Address() { return this.address; }
-    set Address(value) { this.address = value; }
-
-    get Match() { return this.match; }
-    set Match(value) { this.match = value; }
-
-    get Found() { return this.found; }
-    set Found(value) { this.found = value; }
-
-    get CssClass() { return this.found ? "found" : "notfound"; }
-}
-class RoutedAddress {
-    constructor(address, stop, distance) {
-        this.address = address;
-        this.distance = distance;
-        this.stop = stop;
-    }
-    get Address() { return this.address; }
-    set Address(value) { this.address = value; }
-
-    get Distance() { return this.distance; }
-    set Distance(value) { this.distance = value; }
-
-    get Stop() { return this.stop; }
-    set Stop(value) { this.stop = value; }
-}
-
-class BoundingBox {
-    static MinLongitude = -97.893677;
-    static MaxLongitude = -95.861206;
-    static MinLatitude = 32.238359;
-    static MaxLatitude = 34.023071;
-    static ValidateCoordinates = (lat, long) => {
-        if (lat > this.MaxLatitude || lat < this.MinLatitude) return false;
-        if (long > this.MaxLongitude || long < this.MinLongitude) return false;
-        return true;
-    };
-
-}
