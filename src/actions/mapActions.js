@@ -41,7 +41,7 @@ const validateAddress = async (address) => {
     return Promise.resolve();
 };
 const ERROR_ROUTING_HEADER = "Error routing addresses"
-const routeAddressList = async (list) => {
+const routeAddressList = async (list, routeType) => {
     const items = list.filter(a => a.Found === true);
     if (!(items?.length > 0)) {
         return Promise.resolve({ error: { header: ERROR_ROUTING_HEADER, message: "No valid addresses" }});
@@ -50,7 +50,8 @@ const routeAddressList = async (list) => {
     const request = {
         locations: items.map(i => i.Match),
         options: {
-            narrativeType: "none"
+            narrativeType: "none",
+            routeType: routeType
         }
     };
     const response = await (fetch("https://here-b2c.aws.mapquest.com/directions/v2/optimizedroute?timeType=1", {

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { RoutedAddress, Location, BoundingBox } from '../classes';
 import { validateAddress, routeAddressList } from '../actions/mapActions';
 import { ErrorToast } from './toastMessage';
-import { Button, Spinner, ToastContainer } from 'react-bootstrap';
+import { Button, ButtonGroup, Dropdown, DropdownButton, Spinner, ToastContainer } from 'react-bootstrap';
+import { Container, Row, Col } from 'react-bootstrap';
 import { CopyButton } from './copyButton';
 import { CopyContent } from '../actions/clipboardActions';
 
@@ -14,7 +15,8 @@ export const AddressList = () => {
     const [routeWait, setRouteWait] = useState(false);
     const [validateWait, setValidateWaiting] = useState(false);
     const [showMap, setShowMap] = useState(true);
-    const [mapCenter, setMapCenter] = useState([33.1713531, -96.8214918]);
+    const [routeType, setRouteType] = useState("Fastest");
+    //const [mapCenter, setMapCenter] = useState([33.1713531, -96.8214918]);
 
     const handleChange = (event) => {
         var val = event?.target?.value;
@@ -90,20 +92,35 @@ export const AddressList = () => {
             return;
         }
         console.log("Center:", `${xCenter}, ${yCenter}`);
-        setMapCenter([yCenter, xCenter]);
+        let mapCenter = [yCenter, xCenter];
         setShowMap(true);
         let routedLocations = routedList.map(l => `${l.Address}, ${l.Zip}`);
+        window.theMap.remove();
+        window.theMap = L.mapquest.map('map', {
+            key: new Date().getTime(),
+            center: mapCenter,
+            layers: window.L.mapquest.tileLayer("map"),
+            zoom: 17,
+            scrollWheelZoom: false
+        });
+        theMap.addControl(L.mapquest.control());
+
         let directions = L.mapquest.directions();
         directions.route({
             locations: routedLocations
         });
+        console.log(directions);
     }, [boundary])
+
+    const onRouteTypeSelected = (eventKey, event) => {
+        setRouteType(eventKey);
+    }
 
     const routeAddresses = async () => {
         setRouteWait(!routeWait);
         setRoutedList([]);
         setErrorData([]);
-        let routed = await routeAddressList(list);
+        let routed = await routeAddressList(list, routeType);
         if (routed?.error) {
             setErrorData([routed.error]);
         }
@@ -188,20 +205,27 @@ export const AddressList = () => {
                     )}
                 </div>
                 <div className="col-sm">
-                    {routeWait === true &&
-                        (<Button disabled>
-                            <Spinner
-                                as="span"
-                                animation="border"
-                                size="sm"
-                                role="status"
-                                aria-hidden="true" />
-                        </Button>
+                    <ButtonGroup>
+
+                        <DropdownButton variant="secondary" onSelect={onRouteTypeSelected} title={routeType}>
+                            <Dropdown.Item eventKey="Shortest">Shortest</Dropdown.Item>
+                            <Dropdown.Item eventKey="Fastest">Fastest</Dropdown.Item>
+                        </DropdownButton>
+                        {routeWait === true &&
+                            (<Button disabled>
+                                <Spinner
+                                    as="span"
+                                    animation="border"
+                                    size="sm"
+                                    role="status"
+                                    aria-hidden="true" />
+                            </Button>
+                            )}
+                        {routeWait === false && (
+                            <Button id="routeBtn" onClick={routeAddresses}>Route
+                            </Button>
                         )}
-                    {routeWait === false && (
-                        <Button id="routeBtn" onClick={routeAddresses}>Route
-                        </Button>
-                    )}
+                    </ButtonGroup>
                 </div>
             </div>
             <div className="row">

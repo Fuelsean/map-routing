@@ -35,15 +35,14 @@
   <script>
     window.onload = function () {
       L.mapquest.key = "HbeZkfxVyOubAiNNEVA2yZSb79i96XyW";
-      let map = L.mapquest.map('map', {
+      window.theMap = L.mapquest.map('map', {
         key: new Date().getTime(),
         center: [33.1713531, -96.8214918],
         layers: window.L.mapquest.tileLayer("map"),
         zoom: 17,
         scrollWheelZoom: false
       });
-      map.addControl(L.mapquest.control());
-      
+      theMap.addControl(L.mapquest.control());
     }
   </script>
 </head>
