@@ -51,10 +51,12 @@ const routeAddressList = async (list, routeType) => {
         locations: items.map(i => i.Match),
         options: {
             narrativeType: "none",
-            routeType: routeType
+            routeType: routeType.toLowerCase() == "none" ? "fastest" : routeType
         }
     };
-    const response = await (fetch("https://here-b2c.aws.mapquest.com/directions/v2/optimizedroute?timeType=1", {
+    let url = "https://here-b2c.aws.mapquest.com/directions/v2/optimizedroute?timeType=1";
+    if(routeType.toLowerCase() == "none") url = "https://here-b2c.aws.mapquest.com/directions/v2/route?timeType=1"
+    const response = await (fetch(url, {
         method: "POST",
         cache: "no-cache",
         headers: { 'Content-Type': 'application/json' },

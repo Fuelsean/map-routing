@@ -210,6 +210,7 @@ export const AddressList = () => {
                         <DropdownButton variant="secondary" onSelect={onRouteTypeSelected} title={routeType}>
                             <Dropdown.Item eventKey="Shortest">Shortest</Dropdown.Item>
                             <Dropdown.Item eventKey="Fastest">Fastest</Dropdown.Item>
+                            <Dropdown.Item eventKey="None">None</Dropdown.Item>
                         </DropdownButton>
                         {routeWait === true &&
                             (<Button disabled>
