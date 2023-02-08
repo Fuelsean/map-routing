@@ -40,6 +40,9 @@
 .found {
   background-color: lightgreen;
 }
+.partialFound {
+  background-color: lightgoldenrodyellow;
+}
 .notfound {
   background-color: palevioletred;
 }

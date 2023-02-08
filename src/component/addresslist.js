@@ -69,6 +69,15 @@ export const AddressList = () => {
             alert(`${copyTextArray.length} addresses copied.`);
         }
     };
+    const copyDistance = async () => {
+        let itemArray = routedList.filter((a, index) => index > 0);
+        let copyTextArray = itemArray?.map((i) => `${i.Distance}`);
+        if (copyTextArray?.length > 0) {
+            let copyText = copyTextArray.join("\n");
+            await CopyContent(copyText);
+            alert(`${copyTextArray.length} address distances copied.`);
+        }
+    };
 
     useEffect(() => {
         //console.log("Validating", validateWait);
@@ -80,7 +89,7 @@ export const AddressList = () => {
         , [routeWait])
 
     useEffect(() => {
-        console.log(boundary)
+        //console.log(boundary)
         if (!boundary) {
             setShowMap(false);
             return;
@@ -91,7 +100,7 @@ export const AddressList = () => {
             setShowMap(false);
             return;
         }
-        console.log("Center:", `${xCenter}, ${yCenter}`);
+        //console.log("Center:", `${xCenter}, ${yCenter}`);
         let mapCenter = [yCenter, xCenter];
         setShowMap(true);
         let routedLocations = routedList.map(l => `${l.Address}, ${l.Zip}`);
@@ -109,7 +118,7 @@ export const AddressList = () => {
         directions.route({
             locations: routedLocations
         });
-        console.log(directions);
+        //console.log(directions);
     }, [boundary])
 
     const onRouteTypeSelected = (eventKey, event) => {
@@ -131,11 +140,11 @@ export const AddressList = () => {
 
     const formatTable = () => {
         return list.map((item, index) => {
-            //console.log(index, item);
             return (
                 <tr key={index} className={item.CssClass}>
                     <td>{item.Address}</td>
                     <td>{`${item.Match}`}</td>
+                    <td>{`${item.MatchType}`}</td>
                 </tr>
             )
         });
@@ -165,20 +174,20 @@ export const AddressList = () => {
     };
 
     return (
-        <div className="container">
+        <div className="container-fluid">
             <ToastContainer containerPosition="position-fixed" position='top-center'>
                 {errorData && showErrors()}
             </ToastContainer>
-            <div className="row">
-                <div className="col-sm">
+            <div className="row justify-content-center">
+                <div className="col-4">
                     <h2>Address input list</h2>
                     <textarea rows="20" cols="50" id="addressList" onChange={handleChange} />
                 </div>
-                <div className="col-sm">
+                <div className="col-6">
                     <table className="table">
                         <thead>
                             <tr>
-                                <th>Address</th><th>Match</th>
+                                <th>Address</th><th>Match</th><th>Exact</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -188,7 +197,7 @@ export const AddressList = () => {
                 </div>
             </div>
             <div className="row">
-                <div className="col-sm">
+                <div className="col">
                     {validateWait === true &&
                         (<Button disabled>
                             <Spinner
@@ -204,9 +213,8 @@ export const AddressList = () => {
                         </Button>
                     )}
                 </div>
-                <div className="col-sm">
+                <div className="col">
                     <ButtonGroup>
-
                         <DropdownButton variant="secondary" onSelect={onRouteTypeSelected} title={routeType}>
                             <Dropdown.Item eventKey="Shortest">Shortest</Dropdown.Item>
                             <Dropdown.Item eventKey="Fastest">Fastest</Dropdown.Item>
@@ -239,7 +247,9 @@ export const AddressList = () => {
                                     <CopyButton height="14" width="14" copyClickHandler={copyRouted} />
                                 </th>
                                 <th>Zip</th>
-                                <th>Distance</th>
+                                <th>Distance
+                                    <CopyButton height="14" width="14" copyClickHandler={copyDistance} />
+                                </th>
                             </tr>
                         </thead>
                         <tbody>

@@ -14,10 +14,20 @@ export class Location {
     get Found() { return this.found; }
     set Found(value) { this.found = value; }
 
-    get CssClass() { return this.found ? "found" : "notfound"; }
+    get CssClass() { return this.found ? this.ExactMatch ? "found" : "partialFound" : "notfound"; }
+
+    get MatchType() {
+        return this.found ? this.ExactMatch ? "Exact" : "Partial" : "Not found"; 
+    }
 
     get Error() { return this.error; }
     set Error(value) { this.error = value;}
+
+    get ExactMatch() { 
+        let addressPartial = this.address?.toLowerCase().substring(0, this.address.length > 5 ? 5 : this.address.length);
+        let matchPartial = this.match?.toLowerCase().substring(0, this.match.length > 5 ? 5 : this.match.length);
+        return (matchPartial == addressPartial);
+    }
 
     static withError(err) {
         let o = new Location();
