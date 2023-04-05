@@ -1,3 +1,5 @@
+import { RoundNumber } from "../lib/round";
+
 export class Location {
     constructor() {
         this.address = "";
@@ -50,7 +52,12 @@ export class RoutedAddress {
     get Zip() { return this.zip; }
     set Zip(value) { this.zip = value; }
 
-    get Distance() { return this.distance; }
+    get Distance() { 
+        if(this.distance && !isNaN(this.distance)){
+            return RoundNumber(this.distance, 1);
+        }
+        return this.distance;
+    }
     set Distance(value) { this.distance = value; }
 
     get Stop() { return this.stop; }
